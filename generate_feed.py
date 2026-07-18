@@ -1,8 +1,7 @@
-import requests
+from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
 from datetime import datetime
-from email.utils import format_datetime
 
 
 SITEMAP = "https://www.rouleur.cc/sitemap.xml"
@@ -18,23 +17,43 @@ CATEGORIES = [
 ]
 
 
+def get_sitemap():
+
+    with sync_playwright() as p:
+
+        browser = p.chromium.launch(
+            headless=True
+        )
+
+        page = browser.new_page(
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+            )
+        )
+
+        page.goto(
+            SITEMAP,
+            wait_until="networkidle",
+            timeout=60000
+        )
+
+        content = page.content()
+
+        browser.close()
+
+
+    return content
+
+
+
 def get_articles():
 
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-
-    r = requests.get(
-        SITEMAP,
-        headers=headers,
-        timeout=30
-    )
-
-    r.raise_for_status()
+    xml = get_sitemap()
 
 
     soup = BeautifulSoup(
-        r.text,
+        xml,
         "xml"
     )
 
@@ -54,26 +73,27 @@ def get_articles():
 
 
         if any(
-            category in link
-            for category in CATEGORIES
+            cat in link
+            for cat in CATEGORIES
         ):
 
             lastmod = url.find(
                 "lastmod"
             )
 
-
             date = None
 
             if lastmod:
 
                 try:
+
                     date = datetime.fromisoformat(
                         lastmod.text.strip()
                         .replace("Z", "+00:00")
                     )
 
                 except:
+
                     pass
 
 
