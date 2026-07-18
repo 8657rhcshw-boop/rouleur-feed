@@ -1,90 +1,155 @@
-from playwright.sync_api import sync_playwright
+import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from feedgen.feed import FeedGenerator
+from datetime import datetime
+from email.utils import format_datetime
 
 
-SOURCE = "https://www.rouleur.cc/"
+SITEMAP = "https://www.rouleur.cc/sitemap.xml"
+OUTPUT = "rouleur.xml"
+
+
+CATEGORIES = [
+    "/racing/",
+    "/tech/",
+    "/culture/",
+    "/adventure/",
+    "/performance/",
+]
 
 
 def get_articles():
 
-    with sync_playwright() as p:
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-        browser = p.chromium.launch(
-            headless=True
-        )
+    r = requests.get(
+        SITEMAP,
+        headers=headers,
+        timeout=30
+    )
 
-        page = browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120 Safari/537.36"
-            )
-        )
-
-        page.goto(
-            SOURCE,
-            wait_until="networkidle",
-            timeout=60000
-        )
-
-        html = page.content()
-
-        browser.close()
+    r.raise_for_status()
 
 
     soup = BeautifulSoup(
-        html,
-        "html.parser"
+        r.text,
+        "xml"
     )
 
 
-    print("\n--- LINK TROVATI ---\n")
+    articles = []
 
 
-    links = []
+    for url in soup.find_all("url"):
 
-    for a in soup.find_all(
-        "a",
-        href=True
-    ):
+        loc = url.find("loc")
 
-        text = a.get_text(
-            " ",
-            strip=True
-        )
+        if not loc:
+            continue
 
-        href = urljoin(
-            SOURCE,
-            a["href"]
-        )
 
-        if text:
+        link = loc.text.strip()
 
-            links.append(
+
+        if any(
+            category in link
+            for category in CATEGORIES
+        ):
+
+            lastmod = url.find(
+                "lastmod"
+            )
+
+
+            date = None
+
+            if lastmod:
+
+                try:
+                    date = datetime.fromisoformat(
+                        lastmod.text.strip()
+                        .replace("Z", "+00:00")
+                    )
+
+                except:
+                    pass
+
+
+            articles.append(
                 {
-                    "text": text,
-                    "href": href
+                    "url": link,
+                    "date": date
                 }
             )
 
 
-    for link in links[:100]:
-
-        print(
-            link["text"],
-            "=>",
-            link["href"]
-        )
+    return articles
 
 
-    print(
-        "\nTotale link:",
-        len(links)
+
+def create_feed(articles):
+
+    fg = FeedGenerator()
+
+    fg.id(
+        "https://www.rouleur.cc"
+    )
+
+    fg.title(
+        "Rouleur.cc"
+    )
+
+    fg.link(
+        href="https://www.rouleur.cc"
+    )
+
+    fg.description(
+        "Rouleur latest articles"
+    )
+
+    fg.language(
+        "en"
     )
 
 
-    return []
+    for article in articles:
+
+        fe = fg.add_entry()
+
+        fe.id(
+            article["url"]
+        )
+
+        fe.link(
+            href=article["url"]
+        )
+
+        title = (
+            article["url"]
+            .split("/")
+            [-1]
+            .replace("-", " ")
+            .title()
+        )
+
+        fe.title(
+            title
+        )
+
+
+        if article["date"]:
+
+            fe.pubDate(
+                article["date"]
+            )
+
+
+    fg.rss_file(
+        OUTPUT,
+        pretty=True
+    )
 
 
 
@@ -93,4 +158,8 @@ articles = get_articles()
 print(
     "Articoli trovati:",
     len(articles)
+)
+
+create_feed(
+    articles
 )
