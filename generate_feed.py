@@ -1,264 +1,60 @@
-import requests
-from bs4 import BeautifulSoup
+import feedparser
 from feedgen.feed import FeedGenerator
-from dateutil import parser
 import datetime
-import re
 
 
-BASE = "https://www.rouleur.cc"
-SITEMAP = BASE + "/sitemap.xml"
+SOURCE_FEED = "https://www.rouleur.cc/feed"
 
 OUTPUT = "rouleur.xml"
 
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml"
-}
+def create_feed():
 
-
-import time
-
-
-def get_xml(url):
-
-    for attempt in range(5):
-
-        r = requests.get(
-            url,
-            headers=HEADERS,
-            timeout=30
-        )
-
-        if r.status_code == 200:
-            return r.text
-
-        if r.status_code == 429:
-            wait = 10 * (attempt + 1)
-            print(
-                f"Rate limit. Attendo {wait}s..."
-            )
-            time.sleep(wait)
-            continue
-
-        r.raise_for_status()
-
-
-    raise Exception(
-        "Impossibile scaricare " + url
-    )
-
-
-
-def get_article_urls():
-
-    xml = get_xml(SITEMAP)
-
-    soup = BeautifulSoup(
-        xml,
-        "xml"
-    )
-
-    sitemap_links = []
-
-    for loc in soup.find_all("loc"):
-
-        url = loc.text.strip()
-
-        if "sitemap" in url:
-            sitemap_links.append(url)
-
-
-    article_urls = []
-
-
-    # se è una sitemap index
-    if sitemap_links:
-
-        for sitemap in sitemap_links:
-
-            print(
-                "Leggo:",
-                sitemap
-            )
-
-            subxml = get_xml(sitemap)
-
-            subsoup = BeautifulSoup(
-                subxml,
-                "xml"
-            )
-
-            for loc in subsoup.find_all("loc"):
-
-                url = loc.text.strip()
-
-                if "/blogs/news/" in url:
-                    article_urls.append(url)
-
-    else:
-
-        for loc in soup.find_all("loc"):
-
-            url = loc.text.strip()
-
-            if "/blogs/news/" in url:
-                article_urls.append(url)
-
-
-    return list(set(article_urls))
-
-
-
-def parse_article(url):
-
-    html = get_xml(url)
-
-    soup = BeautifulSoup(html, "html.parser")
-
-
-    # titolo
-    title = None
-
-    og_title = soup.find(
-        "meta",
-        property="og:title"
-    )
-
-    if og_title:
-        title = og_title.get("content")
-
-
-    if not title:
-        title = soup.title.text
-
-
-    # immagine
-    image = None
-
-    og_image = soup.find(
-        "meta",
-        property="og:image"
-    )
-
-    if og_image:
-        image = og_image.get("content")
-
-
-    # descrizione
-    desc = ""
-
-    meta = soup.find(
-        "meta",
-        property="og:description"
-    )
-
-    if meta:
-        desc = meta.get("content","")
-
-
-    # data
-    date = datetime.datetime.now()
-
-    time = soup.find(
-        "time"
-    )
-
-    if time and time.get("datetime"):
-        try:
-            date = parser.parse(
-                time["datetime"]
-            )
-        except:
-            pass
-
-
-    # premium detection
-    premium = False
-
-    text = soup.get_text(
-        " ",
-        strip=True
-    ).lower()
-
-
-    if (
-        "subscriber" in text
-        or "members" in text
-        or "premium" in text
-    ):
-        premium = True
-
-
-
-    return {
-        "title": title,
-        "url": url,
-        "image": image,
-        "description": desc,
-        "date": date,
-        "premium": premium
-    }
-
-
-
-
-def create_feed(items):
+    source = feedparser.parse(SOURCE_FEED)
 
     fg = FeedGenerator()
 
-    fg.id(BASE)
-    fg.title(
-        "Rouleur.cc"
-    )
-
+    fg.id("https://www.rouleur.cc")
+    fg.title("Rouleur.cc - All Articles")
     fg.link(
-        href=BASE
+        href="https://www.rouleur.cc"
     )
-
     fg.description(
-        "All Rouleur articles including subscriber content"
+        "Rouleur articles feed"
     )
-
-    fg.language(
-        "en"
-    )
+    fg.language("en")
 
 
-    for item in items:
+    for article in source.entries:
 
         fe = fg.add_entry()
 
-        title = item["title"]
-
-        if item["premium"]:
-            title = "🔒 " + title
-
-
         fe.id(
-            item["url"]
+            article.link
         )
 
         fe.title(
-            title
+            article.title
         )
 
         fe.link(
-            href=item["url"]
+            href=article.link
         )
 
+        if hasattr(article, "summary"):
+            fe.description(
+                article.summary
+            )
 
-        fe.description(
-            item["description"]
-        )
+        if hasattr(article, "published_parsed"):
 
-        fe.published(
-            item["date"]
-        )
+            date = datetime.datetime(
+                *article.published_parsed[:6]
+            )
+
+            fe.published(
+                date
+            )
 
 
     fg.rss_file(
@@ -267,38 +63,6 @@ def create_feed(items):
     )
 
 
+create_feed()
 
-urls = get_article_urls()
-
-
-articles = []
-
-
-for url in urls[:200]:
-
-    try:
-        article = parse_article(url)
-        articles.append(article)
-
-    except Exception as e:
-        print(
-            "Errore:",
-            url,
-            e
-        )
-
-
-articles.sort(
-    key=lambda x:x["date"],
-    reverse=True
-)
-
-
-create_feed(
-    articles
-)
-
-
-print(
-    f"Creati {len(articles)} articoli"
-)
+print("Feed creato")
