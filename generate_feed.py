@@ -2,10 +2,10 @@ import requests
 
 
 urls = [
-    "https://www.rouleur.cc/feed",
-    "https://www.rouleur.cc/rss",
-    "https://www.rouleur.cc/blog/rss.xml",
-    "https://www.rouleur.cc/news/rss.xml"
+    "https://www.rouleur.cc/news-sitemap.xml?output=1",
+    "https://www.rouleur.cc/sitemap-news.xml",
+    "https://www.rouleur.cc/sitemap_index.xml",
+    "https://www.rouleur.cc/wp-sitemap.xml"
 ]
 
 
@@ -14,7 +14,6 @@ for url in urls:
     print("\nTEST:", url)
 
     try:
-
         r = requests.get(
             url,
             headers={
@@ -23,12 +22,8 @@ for url in urls:
             timeout=20
         )
 
-
         print("STATUS:", r.status_code)
-
-        print(r.text[:300])
-
+        print(r.text[:200])
 
     except Exception as e:
-
         print("ERRORE:", e)
