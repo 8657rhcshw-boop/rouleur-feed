@@ -26,13 +26,34 @@ HEADERS = {
 
 def get_articles():
 
+  import time
+
+
+for attempt in range(5):
+
     r = requests.get(
         SOURCE,
         headers=HEADERS,
         timeout=30
     )
 
-    r.raise_for_status()
+    if r.status_code == 200:
+        break
+
+    if r.status_code == 429:
+        wait = 30 * (attempt + 1)
+        print(
+            f"Rouleur rate limit. Attendo {wait} secondi..."
+        )
+        time.sleep(wait)
+
+    else:
+        r.raise_for_status()
+
+else:
+    raise Exception(
+        "Rouleur continua a bloccare la richiesta"
+    )
 
     soup = BeautifulSoup(
         r.text,
