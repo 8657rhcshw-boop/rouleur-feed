@@ -1,5 +1,2 @@
-requests
-beautifulsoup4
+feedparser
 feedgen
-lxml
-python-dateutil
