@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
 from urllib.parse import urljoin
 import datetime
-import re
+import time
 
 
 SOURCE = "https://www.rouleur.cc/"
@@ -24,42 +24,42 @@ HEADERS = {
 }
 
 
+def download_page(url):
+
+    for attempt in range(5):
+
+        r = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=30
+        )
+
+        if r.status_code == 200:
+            return r.text
+
+        if r.status_code == 429:
+            wait = 30 * (attempt + 1)
+            print(
+                f"Rate limit Rouleur. Attendo {wait}s..."
+            )
+            time.sleep(wait)
+
+        else:
+            r.raise_for_status()
+
+    raise Exception(
+        "Rouleur non raggiungibile dopo vari tentativi"
+    )
+
+
 def get_articles():
 
-  import time
-
-
-for attempt in range(5):
-
-    r = requests.get(
-        SOURCE,
-        headers=HEADERS,
-        timeout=30
-    )
-
-    if r.status_code == 200:
-        break
-
-    if r.status_code == 429:
-        wait = 30 * (attempt + 1)
-        print(
-            f"Rouleur rate limit. Attendo {wait} secondi..."
-        )
-        time.sleep(wait)
-
-    else:
-        r.raise_for_status()
-
-else:
-    raise Exception(
-        "Rouleur continua a bloccare la richiesta"
-    )
+    html = download_page(SOURCE)
 
     soup = BeautifulSoup(
-        r.text,
+        html,
         "html.parser"
     )
-
 
     articles = {}
 
@@ -86,22 +86,16 @@ else:
                 strip=True
             )
 
-
-            if (
-                len(title) > 15
-                and url not in articles
-            ):
+            if len(title) > 15:
 
                 articles[url] = {
                     "title": title,
                     "url": url
                 }
 
-
     return list(
         articles.values()
     )
-
 
 
 def create_feed(items):
@@ -109,21 +103,12 @@ def create_feed(items):
     fg = FeedGenerator()
 
     fg.id(SOURCE)
-    fg.title(
-        "Rouleur.cc"
-    )
-
-    fg.link(
-        href=SOURCE
-    )
-
+    fg.title("Rouleur.cc")
+    fg.link(href=SOURCE)
     fg.description(
-        "Rouleur latest stories"
+        "Rouleur latest articles"
     )
-
-    fg.language(
-        "en"
-    )
+    fg.language("en")
 
 
     for item in items:
@@ -153,14 +138,12 @@ def create_feed(items):
     )
 
 
-
 articles = get_articles()
 
 print(
     "Articoli trovati:",
     len(articles)
 )
-
 
 create_feed(
     articles
