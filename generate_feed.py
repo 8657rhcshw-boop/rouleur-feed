@@ -1,9 +1,8 @@
 import asyncio
-import xml.etree.ElementTree as ET
 from playwright.async_api import async_playwright
 
 
-URL = "https://www.rouleur.cc/news-sitemap.xml"
+URL = "https://www.rouleur.cc/sitemap.xml"
 
 
 async def main():
@@ -16,34 +15,38 @@ async def main():
             headless=True
         )
 
-        page = await browser.new_page()
+        page = await browser.new_page(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/120 Safari/537.36"
+            )
+        )
+
 
         print("Apro sitemap...")
 
-        await page.goto(
+        response = await page.goto(
             URL,
             wait_until="networkidle",
             timeout=60000
         )
 
-        await page.wait_for_timeout(5000)
 
-        print("Leggo contenuto pagina...")
-
-        content = await page.content()
-
-        print("--- PRIMI CARATTERI ---")
-        print(content[:500])
-        print("--- FINE ---")
+        print("STATUS:")
+        print(response.status)
 
 
-        # Prova a prendere il vero XML dal DOM
+        await page.wait_for_timeout(3000)
+
+
         text = await page.locator("body").inner_text()
 
 
-        print("--- TEST XML ---")
-        print(text[:500])
-        print("--- FINE TEST ---")
+        print("--- RISULTATO ---")
+        print(text[:1000])
+        print("--- FINE ---")
 
 
         await browser.close()
