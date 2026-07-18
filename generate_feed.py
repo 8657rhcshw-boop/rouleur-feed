@@ -3,7 +3,7 @@ from feedgen.feed import FeedGenerator
 import datetime
 
 
-SOURCE_FEED = "https://www.rouleur.cc/feed"
+SOURCE_FEED = "https://www.rouleur.cc/blogs/news.atom"
 
 OUTPUT = "rouleur.xml"
 
