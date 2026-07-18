@@ -1,190 +1,244 @@
+import feedparser
 import requests
-import xml.etree.ElementTree as ET
-from datetime import datetime, UTC
-from urllib.parse import urlparse, parse_qs
+import time
+from datetime import datetime, timezone
+from xml.etree.ElementTree import Element, SubElement, ElementTree
+from html import unescape
+from urllib.parse import quote
 
 
-GOOGLE_RSS = "https://news.google.com/rss/search?q=site%3Arouleur.cc"
+# ==========================
+# CONFIGURAZIONE
+# ==========================
 
-OUTPUT = "rouleur.xml"
+SITE = "rouleur.cc"
+
+GOOGLE_NEWS_RSS = (
+    "https://news.google.com/rss/search?q="
+    + quote(f"site:{SITE}")
+)
+
+OUTPUT_FILE = "rouleur.xml"
+
+MAX_ITEMS = 30
 
 
-def extract_real_url(url):
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    )
+}
 
+
+# ==========================
+# ESTRAZIONE LINK ORIGINALE
+# ==========================
+
+def get_original_url(url):
     """
-    Prova a recuperare il link originale da Google News.
+    Trasforma il link Google News nel link reale dell'articolo.
     """
 
     try:
-
         r = requests.get(
             url,
-            headers={
-                "User-Agent": "Mozilla/5.0"
-            },
-            timeout=15,
+            headers=HEADERS,
+            timeout=10,
             allow_redirects=True
         )
 
         final_url = r.url
 
-        if "rouleur.cc" in final_url:
+        # evita eventuali redirect Google rimasti
+        if "news.google.com" not in final_url:
             return final_url
 
+        return url
+
     except Exception:
-        pass
+        return url
 
 
-    return url
+# ==========================
+# DOWNLOAD GOOGLE NEWS RSS
+# ==========================
 
-
-
-def main():
+def download_feed():
 
     print("Scarico Google News RSS...")
-
+    print(GOOGLE_NEWS_RSS)
 
     response = requests.get(
-        GOOGLE_RSS,
-        headers={
-            "User-Agent": "Mozilla/5.0"
-        },
-        timeout=30
+        GOOGLE_NEWS_RSS,
+        headers=HEADERS,
+        timeout=20
     )
-
 
     print("STATUS:", response.status_code)
 
+    response.raise_for_status()
 
-    if response.status_code != 200:
-        print("Errore download RSS")
-        return
+    feed = feedparser.parse(response.text)
 
+    print(
+        "Articoli trovati:",
+        len(feed.entries)
+    )
 
-
-    root = ET.fromstring(response.text)
-
-
-    items = root.findall(".//item")
-
-
-    print("Articoli trovati:", len(items))
+    return feed.entries
 
 
-    rss = ET.Element(
+# ==========================
+# CREAZIONE RSS
+# ==========================
+
+def create_rss(entries):
+
+    rss = Element(
         "rss",
         {
             "version": "2.0"
         }
     )
 
-
-    channel = ET.SubElement(
+    channel = SubElement(
         rss,
         "channel"
     )
 
-
-    ET.SubElement(
+    SubElement(
         channel,
         "title"
-    ).text = "Rouleur RSS"
+    ).text = "Rouleur Cycling News"
 
-
-    ET.SubElement(
+    SubElement(
         channel,
         "link"
     ).text = "https://www.rouleur.cc"
 
-
-    ET.SubElement(
+    SubElement(
         channel,
         "description"
-    ).text = "Ultime notizie Rouleur"
+    ).text = "Latest news from Rouleur"
 
-
-
-    ET.SubElement(
+    SubElement(
         channel,
         "lastBuildDate"
-    ).text = datetime.now(UTC).strftime(
+    ).text = datetime.now(
+        timezone.utc
+    ).strftime(
         "%a, %d %b %Y %H:%M:%S GMT"
     )
 
 
+    count = 0
 
-    for item in items:
 
-        new_item = ET.SubElement(
+    for entry in entries:
+
+        if count >= MAX_ITEMS:
+            break
+
+
+        title = unescape(
+            entry.get(
+                "title",
+                "Rouleur article"
+            )
+        )
+
+
+        google_link = entry.get(
+            "link",
+            ""
+        )
+
+
+        print("Processo:", title)
+
+
+        original_link = get_original_url(
+            google_link
+        )
+
+
+        item = SubElement(
             channel,
             "item"
         )
 
 
-        title = item.find("title")
-        link = item.find("link")
-        description = item.find("description")
-        pubdate = item.find("pubDate")
+        SubElement(
+            item,
+            "title"
+        ).text = title
 
 
-        if title is not None:
-            ET.SubElement(
-                new_item,
-                "title"
-            ).text = title.text
+        SubElement(
+            item,
+            "link"
+        ).text = original_link
 
 
-
-        if link is not None:
-
-            real_link = extract_real_url(
-                link.text
-            )
-
-            print(
-                "LINK:",
-                real_link
-            )
+        SubElement(
+            item,
+            "guid"
+        ).text = original_link
 
 
-            ET.SubElement(
-                new_item,
-                "link"
-            ).text = real_link
+        description = entry.get(
+            "description",
+            ""
+        )
 
 
-
-        if description is not None:
-
-            ET.SubElement(
-                new_item,
-                "description"
-            ).text = description.text
+        SubElement(
+            item,
+            "description"
+        ).text = description
 
 
-
-        if pubdate is not None:
-
-            ET.SubElement(
-                new_item,
+        if "published" in entry:
+            SubElement(
+                item,
                 "pubDate"
-            ).text = pubdate.text
+            ).text = entry.published
+
+
+        count += 1
+
+
+        # evita troppe richieste consecutive
+        time.sleep(0.2)
 
 
 
-    tree = ET.ElementTree(rss)
-
+    tree = ElementTree(rss)
 
     tree.write(
-        OUTPUT,
+        OUTPUT_FILE,
         encoding="utf-8",
         xml_declaration=True
     )
 
 
-    print("Creato:", OUTPUT)
+    print()
+    print(
+        "Creato:",
+        OUTPUT_FILE
+    )
 
 
+
+# ==========================
+# MAIN
+# ==========================
 
 if __name__ == "__main__":
-    main()
+
+    articles = download_feed()
+
+    create_rss(
+        articles
+    )
