@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
   <channel>
-    <title>Rouleur.cc - All Articles</title>
-    <link>https://www.rouleur.cc</link>
-    <description>Rouleur articles feed</description>
+    <title>Rouleur.cc</title>
+    <link>https://www.rouleur.cc/</link>
+    <description>Rouleur latest articles</description>
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>en</language>
-    <lastBuildDate>Sat, 18 Jul 2026 12:26:20 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 18 Jul 2026 12:49:46 +0000</lastBuildDate>
   </channel>
 </rss>
