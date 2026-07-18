@@ -1,56 +1,34 @@
-import asyncio
-from playwright.async_api import async_playwright
+import requests
 
 
-URL = "https://www.rouleur.cc/sitemap.xml"
+urls = [
+    "https://www.rouleur.cc/feed",
+    "https://www.rouleur.cc/rss",
+    "https://www.rouleur.cc/blog/rss.xml",
+    "https://www.rouleur.cc/news/rss.xml"
+]
 
 
-async def main():
+for url in urls:
 
-    print("Avvio browser...")
+    print("\nTEST:", url)
 
-    async with async_playwright() as p:
+    try:
 
-        browser = await p.chromium.launch(
-            headless=True
-        )
-
-        page = await browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 "
-                "(KHTML, like Gecko) "
-                "Chrome/120 Safari/537.36"
-            )
-        )
-
-
-        print("Apro sitemap...")
-
-        response = await page.goto(
-            URL,
-            wait_until="networkidle",
-            timeout=60000
+        r = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            },
+            timeout=20
         )
 
 
-        print("STATUS:")
-        print(response.status)
+        print("STATUS:", r.status_code)
+
+        print(r.text[:300])
 
 
-        await page.wait_for_timeout(3000)
+    except Exception as e:
 
-
-        text = await page.locator("body").inner_text()
-
-
-        print("--- RISULTATO ---")
-        print(text[:1000])
-        print("--- FINE ---")
-
-
-        await browser.close()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        print("ERRORE:", e)
