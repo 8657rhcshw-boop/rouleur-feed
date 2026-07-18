@@ -1,67 +1,27 @@
-from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
+import requests
 
 
-SITEMAP = "https://www.rouleur.cc/news-sitemap.xml"
+URL = "https://www.rouleur.cc/news-sitemap.xml"
 
 
-def get_sitemap():
-
-    with sync_playwright() as p:
-
-        browser = p.chromium.launch(
-            headless=True
-        )
-
-        page = browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 Chrome/120 Safari/537.36"
-            )
-        )
-
-        page.goto(
-            SITEMAP,
-            wait_until="networkidle",
-            timeout=60000
-        )
-
-        print("--- TITLE ---")
-        print(page.title())
-
-        html = page.content()
-
-        print("\n--- HTML ---")
-        print(html[:1000])
-
-        browser.close()
-
-    return html
+headers = {
+    "User-Agent": "Googlebot/2.1 (+http://www.google.com/bot.html)"
+}
 
 
-
-html = get_sitemap()
-
-
-soup = BeautifulSoup(
-    html,
-    "xml"
+response = requests.get(
+    URL,
+    headers=headers,
+    timeout=30
 )
 
-
-print("\n--- LOC TROVATI ---")
-
-locs = soup.find_all(
-    "loc"
-)
 
 print(
-    "Numero:",
-    len(locs)
+    "STATUS:",
+    response.status_code
 )
 
 
-for loc in locs[:20]:
-    print(
-        loc.text
-    )
+print(
+    response.text[:2000]
+)
