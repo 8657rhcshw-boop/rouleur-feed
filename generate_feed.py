@@ -1,12 +1,9 @@
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
-from feedgen.feed import FeedGenerator
 from urllib.parse import urljoin
-import datetime
 
 
 SOURCE = "https://www.rouleur.cc/"
-OUTPUT = "rouleur.xml"
 
 
 def get_articles():
@@ -20,7 +17,8 @@ def get_articles():
         page = browser.new_page(
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120 Safari/537.36"
             )
         )
 
@@ -41,88 +39,53 @@ def get_articles():
     )
 
 
-    articles = {}
+    print("\n--- LINK TROVATI ---\n")
+
+
+    links = []
 
     for a in soup.find_all(
         "a",
         href=True
     ):
 
-        href = a["href"]
+        text = a.get_text(
+            " ",
+            strip=True
+        )
 
-        if (
-            "/stories/" in href
-            or "/articles/" in href
-            or "/blogs/" in href
-        ):
+        href = urljoin(
+            SOURCE,
+            a["href"]
+        )
 
-            url = urljoin(
-                SOURCE,
-                href
-            )
+        if text:
 
-            title = a.get_text(
-                " ",
-                strip=True
-            )
-
-
-            if len(title) > 15:
-
-                articles[url] = {
-                    "title": title,
-                    "url": url
+            links.append(
+                {
+                    "text": text,
+                    "href": href
                 }
+            )
 
 
-    return list(
-        articles.values()
-    )
+    for link in links[:100]:
 
-
-
-def create_feed(items):
-
-    fg = FeedGenerator()
-
-    fg.id(SOURCE)
-    fg.title("Rouleur.cc")
-    fg.link(
-        href=SOURCE
-    )
-    fg.description(
-        "Rouleur latest articles"
-    )
-    fg.language(
-        "en"
-    )
-
-
-    for item in items:
-
-        fe = fg.add_entry()
-
-        fe.id(
-            item["url"]
-        )
-
-        fe.title(
-            item["title"]
-        )
-
-        fe.link(
-            href=item["url"]
-        )
-
-        fe.published(
-            datetime.datetime.now()
+        print(
+            link["text"],
+            "=>",
+            link["href"]
         )
 
 
-    fg.rss_file(
-        OUTPUT,
-        pretty=True
+    print(
+        "\nTotale link:",
+        len(links)
     )
+
+
+    return []
+
 
 
 articles = get_articles()
@@ -130,8 +93,4 @@ articles = get_articles()
 print(
     "Articoli trovati:",
     len(articles)
-)
-
-create_feed(
-    articles
 )
