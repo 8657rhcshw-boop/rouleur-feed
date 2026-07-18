@@ -1,11 +1,42 @@
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, UTC
+from urllib.parse import urlparse, parse_qs
 
 
 GOOGLE_RSS = "https://news.google.com/rss/search?q=site%3Arouleur.cc"
 
 OUTPUT = "rouleur.xml"
+
+
+def extract_real_url(url):
+
+    """
+    Prova a recuperare il link originale da Google News.
+    """
+
+    try:
+
+        r = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            },
+            timeout=15,
+            allow_redirects=True
+        )
+
+        final_url = r.url
+
+        if "rouleur.cc" in final_url:
+            return final_url
+
+    except Exception:
+        pass
+
+
+    return url
+
 
 
 def main():
@@ -28,6 +59,7 @@ def main():
     if response.status_code != 200:
         print("Errore download RSS")
         return
+
 
 
     root = ET.fromstring(response.text)
@@ -68,7 +100,8 @@ def main():
     ET.SubElement(
         channel,
         "description"
-    ).text = "Ultime notizie da Rouleur"
+    ).text = "Ultime notizie Rouleur"
+
 
 
     ET.SubElement(
@@ -79,6 +112,7 @@ def main():
     )
 
 
+
     for item in items:
 
         new_item = ET.SubElement(
@@ -87,22 +121,54 @@ def main():
         )
 
 
-        for tag in [
-            "title",
-            "link",
-            "description",
-            "pubDate"
-        ]:
-
-            element = item.find(tag)
+        title = item.find("title")
+        link = item.find("link")
+        description = item.find("description")
+        pubdate = item.find("pubDate")
 
 
-            if element is not None:
+        if title is not None:
+            ET.SubElement(
+                new_item,
+                "title"
+            ).text = title.text
 
-                ET.SubElement(
-                    new_item,
-                    tag
-                ).text = element.text
+
+
+        if link is not None:
+
+            real_link = extract_real_url(
+                link.text
+            )
+
+            print(
+                "LINK:",
+                real_link
+            )
+
+
+            ET.SubElement(
+                new_item,
+                "link"
+            ).text = real_link
+
+
+
+        if description is not None:
+
+            ET.SubElement(
+                new_item,
+                "description"
+            ).text = description.text
+
+
+
+        if pubdate is not None:
+
+            ET.SubElement(
+                new_item,
+                "pubDate"
+            ).text = pubdate.text
 
 
 
