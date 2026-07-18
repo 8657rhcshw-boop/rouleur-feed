@@ -1,103 +1,53 @@
-from playwright.sync_api import sync_playwright
+import asyncio
 import xml.etree.ElementTree as ET
+from playwright.async_api import async_playwright
 
 
 URL = "https://www.rouleur.cc/news-sitemap.xml"
 
 
-def main():
+async def main():
 
     print("Avvio browser...")
 
+    async with async_playwright() as p:
 
-    with sync_playwright() as p:
-
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled"
-            ]
+        browser = await p.chromium.launch(
+            headless=True
         )
 
+        page = await browser.new_page()
 
-        context = browser.new_context(
-            viewport={
-                "width": 1280,
-                "height": 900
-            },
-            locale="en-US",
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120 Safari/537.36"
-            )
-        )
+        print("Apro sitemap...")
 
-
-        page = context.new_page()
-
-
-        print("Scarico XML...")
-
-
-        response = page.goto(
+        await page.goto(
             URL,
             wait_until="networkidle",
             timeout=60000
         )
 
+        await page.wait_for_timeout(5000)
 
-        xml = response.text()
+        print("Leggo contenuto pagina...")
 
+        content = await page.content()
 
-        print("Primi caratteri XML:")
-        print(xml[:500])
-
-
-        print("\nParsing XML...")
-
-
-        root = ET.fromstring(xml)
+        print("--- PRIMI CARATTERI ---")
+        print(content[:500])
+        print("--- FINE ---")
 
 
-        namespace = {
-            "sm": "http://www.sitemaps.org/schemas/sitemap/0.9"
-        }
+        # Prova a prendere il vero XML dal DOM
+        text = await page.locator("body").inner_text()
 
 
-        articles = []
+        print("--- TEST XML ---")
+        print(text[:500])
+        print("--- FINE TEST ---")
 
 
-        for item in root.findall(
-            "sm:url",
-            namespace
-        ):
-
-            loc = item.find(
-                "sm:loc",
-                namespace
-            )
-
-            if loc is not None:
-                articles.append(loc.text)
-
-
-        print(
-            "Articoli trovati:",
-            len(articles)
-        )
-
-
-        for article in articles[:10]:
-            print(
-                "-",
-                article
-            )
-
-
-        browser.close()
-
+        await browser.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
