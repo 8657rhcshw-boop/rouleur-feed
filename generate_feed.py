@@ -1,60 +1,120 @@
-import feedparser
+import requests
+from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
+from urllib.parse import urljoin
 import datetime
+import re
 
 
-SOURCE_FEED = "https://www.rouleur.cc/blogs/news.atom"
-
+SOURCE = "https://www.rouleur.cc/"
 OUTPUT = "rouleur.xml"
 
 
-def create_feed():
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
 
-    source = feedparser.parse(SOURCE_FEED)
+
+def get_articles():
+
+    r = requests.get(
+        SOURCE,
+        headers=HEADERS,
+        timeout=30
+    )
+
+    r.raise_for_status()
+
+    soup = BeautifulSoup(
+        r.text,
+        "html.parser"
+    )
+
+
+    articles = {}
+
+    for a in soup.find_all(
+        "a",
+        href=True
+    ):
+
+        href = a["href"]
+
+        if (
+            "/blogs/" in href
+            or "/stories/" in href
+            or "/articles/" in href
+        ):
+
+            url = urljoin(
+                SOURCE,
+                href
+            )
+
+            title = a.get_text(
+                " ",
+                strip=True
+            )
+
+
+            if (
+                len(title) > 15
+                and url not in articles
+            ):
+
+                articles[url] = {
+                    "title": title,
+                    "url": url
+                }
+
+
+    return list(
+        articles.values()
+    )
+
+
+
+def create_feed(items):
 
     fg = FeedGenerator()
 
-    fg.id("https://www.rouleur.cc")
-    fg.title("Rouleur.cc - All Articles")
+    fg.id(SOURCE)
+    fg.title(
+        "Rouleur.cc"
+    )
+
     fg.link(
-        href="https://www.rouleur.cc"
+        href=SOURCE
     )
+
     fg.description(
-        "Rouleur articles feed"
+        "Rouleur latest stories"
     )
-    fg.language("en")
+
+    fg.language(
+        "en"
+    )
 
 
-    for article in source.entries:
+    for item in items:
 
         fe = fg.add_entry()
 
         fe.id(
-            article.link
+            item["url"]
         )
 
         fe.title(
-            article.title
+            item["title"]
         )
 
         fe.link(
-            href=article.link
+            href=item["url"]
         )
 
-        if hasattr(article, "summary"):
-            fe.description(
-                article.summary
-            )
-
-        if hasattr(article, "published_parsed"):
-
-            date = datetime.datetime(
-                *article.published_parsed[:6]
-            )
-
-            fe.published(
-                date
-            )
+        fe.published(
+            datetime.datetime.now()
+        )
 
 
     fg.rss_file(
@@ -63,6 +123,15 @@ def create_feed():
     )
 
 
-create_feed()
 
-print("Feed creato")
+articles = get_articles()
+
+print(
+    "Articoli trovati:",
+    len(articles)
+)
+
+
+create_feed(
+    articles
+)
