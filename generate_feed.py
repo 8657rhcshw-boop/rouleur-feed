@@ -21,10 +21,36 @@ HEADERS = {
 }
 
 
+import time
+
+
 def get_xml(url):
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
-    return r.text
+
+    for attempt in range(5):
+
+        r = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=30
+        )
+
+        if r.status_code == 200:
+            return r.text
+
+        if r.status_code == 429:
+            wait = 10 * (attempt + 1)
+            print(
+                f"Rate limit. Attendo {wait}s..."
+            )
+            time.sleep(wait)
+            continue
+
+        r.raise_for_status()
+
+
+    raise Exception(
+        "Impossibile scaricare " + url
+    )
 
 
 
@@ -32,19 +58,59 @@ def get_article_urls():
 
     xml = get_xml(SITEMAP)
 
-    soup = BeautifulSoup(xml, "xml")
+    soup = BeautifulSoup(
+        xml,
+        "xml"
+    )
 
-    urls = []
+    sitemap_links = []
 
     for loc in soup.find_all("loc"):
 
         url = loc.text.strip()
 
-        if "/blogs/news/" in url:
-            urls.append(url)
+        if "sitemap" in url:
+            sitemap_links.append(url)
 
 
-    return list(set(urls))
+    article_urls = []
+
+
+    # se è una sitemap index
+    if sitemap_links:
+
+        for sitemap in sitemap_links:
+
+            print(
+                "Leggo:",
+                sitemap
+            )
+
+            subxml = get_xml(sitemap)
+
+            subsoup = BeautifulSoup(
+                subxml,
+                "xml"
+            )
+
+            for loc in subsoup.find_all("loc"):
+
+                url = loc.text.strip()
+
+                if "/blogs/news/" in url:
+                    article_urls.append(url)
+
+    else:
+
+        for loc in soup.find_all("loc"):
+
+            url = loc.text.strip()
+
+            if "/blogs/news/" in url:
+                article_urls.append(url)
+
+
+    return list(set(article_urls))
 
 
 
