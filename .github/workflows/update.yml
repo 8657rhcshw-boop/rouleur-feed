@@ -1,7 +1,9 @@
 name: Update Rouleur RSS
 
-on:
+permissions:
+  contents: write
 
+on:
   schedule:
     - cron: "0 */2 * * *"
 
@@ -14,34 +16,26 @@ jobs:
 
     runs-on: ubuntu-latest
 
-
     steps:
 
     - uses: actions/checkout@v4
-
 
     - name: Install
       run: |
         pip install -r requirements.txt
 
-
     - name: Generate
       run: |
         python generate_feed.py
-
 
     - name: Commit
       run: |
 
         git config user.name github-actions
-
         git config user.email actions@github.com
-
 
         git add rouleur.xml
 
-
         git commit -m "Update RSS" || exit 0
-
 
         git push
