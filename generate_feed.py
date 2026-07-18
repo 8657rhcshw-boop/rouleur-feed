@@ -1,65 +1,45 @@
-import requests
+from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
 from urllib.parse import urljoin
 import datetime
-import time
 
 
 SOURCE = "https://www.rouleur.cc/"
 OUTPUT = "rouleur.xml"
 
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,"
-        "application/xml;q=0.9,*/*;q=0.8"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-}
-
-
-def download_page(url):
-
-    for attempt in range(5):
-
-        r = requests.get(
-            url,
-            headers=HEADERS,
-            timeout=30
-        )
-
-        if r.status_code == 200:
-            return r.text
-
-        if r.status_code == 429:
-            wait = 30 * (attempt + 1)
-            print(
-                f"Rate limit Rouleur. Attendo {wait}s..."
-            )
-            time.sleep(wait)
-
-        else:
-            r.raise_for_status()
-
-    raise Exception(
-        "Rouleur non raggiungibile dopo vari tentativi"
-    )
-
-
 def get_articles():
 
-    html = download_page(SOURCE)
+    with sync_playwright() as p:
+
+        browser = p.chromium.launch(
+            headless=True
+        )
+
+        page = browser.new_page(
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+            )
+        )
+
+        page.goto(
+            SOURCE,
+            wait_until="networkidle",
+            timeout=60000
+        )
+
+        html = page.content()
+
+        browser.close()
+
 
     soup = BeautifulSoup(
         html,
         "html.parser"
     )
+
 
     articles = {}
 
@@ -71,9 +51,9 @@ def get_articles():
         href = a["href"]
 
         if (
-            "/blogs/" in href
-            or "/stories/" in href
+            "/stories/" in href
             or "/articles/" in href
+            or "/blogs/" in href
         ):
 
             url = urljoin(
@@ -86,6 +66,7 @@ def get_articles():
                 strip=True
             )
 
+
             if len(title) > 15:
 
                 articles[url] = {
@@ -93,9 +74,11 @@ def get_articles():
                     "url": url
                 }
 
+
     return list(
         articles.values()
     )
+
 
 
 def create_feed(items):
@@ -104,11 +87,15 @@ def create_feed(items):
 
     fg.id(SOURCE)
     fg.title("Rouleur.cc")
-    fg.link(href=SOURCE)
+    fg.link(
+        href=SOURCE
+    )
     fg.description(
         "Rouleur latest articles"
     )
-    fg.language("en")
+    fg.language(
+        "en"
+    )
 
 
     for item in items:
