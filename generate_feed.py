@@ -13,8 +13,11 @@ OUTPUT = "rouleur.xml"
 
 
 HEADERS = {
-    "User-Agent": 
-    "Mozilla/5.0 (RSS reader)"
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml"
 }
 
 
