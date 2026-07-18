@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
 
-SITEMAP = "https://www.rouleur.cc/sitemap.xml"
+SITEMAP = "https://www.rouleur.cc/news-sitemap.xml"
 
 
 def get_sitemap():
@@ -26,27 +26,15 @@ def get_sitemap():
             timeout=60000
         )
 
-        print("\n--- TITLE ---")
+        print("--- TITLE ---")
         print(page.title())
-
-        print("\n--- BODY INIZIO ---")
-
-        body = page.locator("body").inner_text()
-
-        print(
-            body[:1000]
-        )
-
-        print("\n--- HTML INIZIO ---")
 
         html = page.content()
 
-        print(
-            html[:1000]
-        )
+        print("\n--- HTML ---")
+        print(html[:1000])
 
         browser.close()
-
 
     return html
 
@@ -57,24 +45,23 @@ html = get_sitemap()
 
 soup = BeautifulSoup(
     html,
-    "html.parser"
+    "xml"
 )
 
 
-print("\n--- URL TROVATI ---")
+print("\n--- LOC TROVATI ---")
 
-urls = soup.find_all(
+locs = soup.find_all(
     "loc"
 )
 
 print(
-    "Numero loc:",
-    len(urls)
+    "Numero:",
+    len(locs)
 )
 
 
-for url in urls[:10]:
-
+for loc in locs[:20]:
     print(
-        url.text
+        loc.text
     )
